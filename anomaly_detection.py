@@ -1,47 +1,83 @@
 import pandas as pd
-from sklearn.ensemble import IsolationForest
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, classification_report
 
-# Load cleaned data
-data = pd.read_csv("data/cleaned_cnc_data.csv")
+# Load our self-created CNC dataset
+data = pd.read_csv("data/cnc_machine_dataset.csv")
 
-# Select sensor features
+# Input features
 features = [
-    "X1_ActualPosition",
-    "X1_ActualVelocity",
-    "X1_ActualAcceleration",
-    "X1_CommandPosition",
-    "X1_CommandVelocity",
-    "X1_CommandAcceleration",
-    "X1_CurrentFeedback",
-    "X1_DCBusVoltage",
-    "X1_OutputCurrent",
-    "X1_OutputVoltage"
+    "ActualPosition",
+    "ActualVelocity",
+    "ActualAcceleration",
+    "CurrentFeedback",
+    "DCBusVoltage",
+    "OutputCurrent",
+    "OutputVoltage",
+    "Vibration",
+    "Temperature",
+    "SpindleSpeed"
 ]
 
+# Input and target
 X = data[features]
+y = data["Machine_Status"]
 
-# Create anomaly detection model
-model = IsolationForest(
+# Convert target labels into numbers
+y = y.map({
+    "Normal": 0,
+    "Abnormal": 1
+})
+
+# Split dataset into training and testing
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
+)
+
+# Create Random Forest model
+model = RandomForestClassifier(
     n_estimators=100,
-    contamination=0.05,
     random_state=42
 )
 
-# Predict machine condition
-data["Anomaly"] = model.fit_predict(X)
+# Train the model
+model.fit(X_train, y_train)
 
-# Convert result to readable labels
-data["Machine_Status"] = data["Anomaly"].map({
-    1: "Normal",
-    -1: "Abnormal"
+# Test the model
+y_pred = model.predict(X_test)
+
+# Calculate accuracy
+accuracy = accuracy_score(y_test, y_pred)
+
+print("Random Forest training completed!")
+
+print("\nAccuracy:")
+print(f"{accuracy * 100:.2f}%")
+
+print("\nClassification Report:")
+print(classification_report(
+    y_test,
+    y_pred,
+    target_names=["Normal", "Abnormal"]
+))
+
+# Predict machine status for complete dataset
+data["Prediction"] = model.predict(X)
+
+data["Predicted_Status"] = data["Prediction"].map({
+    0: "Normal",
+    1: "Abnormal"
 })
 
-print("Anomaly detection completed!")
+print("\nPredicted Machine Status:")
+print(data["Predicted_Status"].value_counts())
 
-print("\nMachine Status:")
-print(data["Machine_Status"].value_counts())
-
-# Save result
+# Save results
 data.to_csv("data/anomaly_results.csv", index=False)
 
-print("\nSaved as: data/anomaly_results.csv")
+print("\nResults saved as: data/anomaly_results.csv")

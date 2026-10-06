@@ -1,80 +1,67 @@
-import pandas as pd
 import streamlit as st
+import pandas as pd
 
-# Load anomaly results
+st.set_page_config(
+    page_title="CNC Digital Twin",
+    layout="wide"
+)
+
+# Load Random Forest results
 data = pd.read_csv("data/anomaly_results.csv")
 
-st.title("AI-Powered CNC Milling Machine Digital Twin")
+st.title("AI-Powered Digital Twin for CNC Milling Machine")
+st.subheader("Predictive Maintenance and Failure Simulation")
 
-st.subheader("Machine Monitoring")
+# Latest machine status from Random Forest
+status = data["Predicted_Status"].iloc[-1]
 
-# Get latest sensor values
-latest = data.iloc[-1]
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.metric(
-        "Actual Velocity",
-        round(latest["X1_ActualVelocity"], 2)
-    )
-
-with col2:
-    st.metric(
-        "Actual Acceleration",
-        round(latest["X1_ActualAcceleration"], 2)
-    )
-
-with col3:
-    st.metric(
-        "Output Current",
-        round(latest["X1_OutputCurrent"], 2)
-    )
-
-# Current machine status
-status = latest["Machine_Status"]
-# Machine Health Score
-
-if status == "Normal":
-    health_score = 100
-else:
-    health_score = 50
-
-st.subheader("Machine Health Score")
-# Maintenance Recommendation
-
-st.subheader("Maintenance Recommendation")
-
-if status == "Normal":
-    st.success("Recommendation: Continue normal machine monitoring.")
-else:
-    st.warning("Recommendation: Inspect machine condition and schedule maintenance.")
-
-st.progress(health_score / 100)
-
-st.write(f"Health Score: {health_score}%")
-
-st.subheader("Current Machine Status")
+# ---------------- MACHINE STATUS ----------------
+st.header("Machine Status")
 
 if status == "Normal":
     st.success("Machine Status: NORMAL")
 else:
     st.error("Machine Status: ABNORMAL")
 
+# ---------------- SENSOR DATA ----------------
+st.header("Sensor Monitoring")
 
-# ------------------------------------------------
-# FAILURE SIMULATION
-# ------------------------------------------------
+st.line_chart(
+    data[
+        [
+            "ActualVelocity",
+            "ActualAcceleration",
+            "OutputCurrent"
+        ]
+    ]
+)
 
-st.subheader("Failure Simulation")
+# ---------------- HEALTH SCORE ----------------
+st.header("Machine Health Score")
 
-simulation = st.checkbox("Enable Failure Simulation")
+if status == "Normal":
+    health_score = 100
+else:
+    health_score = 50
 
-if simulation:
+st.progress(health_score / 100)
+st.write(f"Health Score: {health_score}%")
 
-    st.warning("Failure simulation is ON")
+# ---------------- MAINTENANCE ----------------
+st.header("Maintenance Recommendation")
 
-    # Simulation controls
+if status == "Normal":
+    st.success("Continue normal machine monitoring.")
+else:
+    st.warning("Inspect machine condition and schedule maintenance.")
+
+# ---------------- FAILURE SIMULATION ----------------
+st.header("Failure Simulation")
+
+simulate = st.checkbox("Enable Failure Simulation")
+
+if simulate:
+
     current_increase = st.slider(
         "Simulated Output Current Increase (%)",
         0,
@@ -89,56 +76,26 @@ if simulation:
         30
     )
 
-    # Create simulated values
-    simulated_current = (
-        latest["X1_OutputCurrent"]
-        * (1 + current_increase / 100)
-    )
+    current_value = data["OutputCurrent"].iloc[-1]
+    acceleration_value = data["ActualAcceleration"].iloc[-1]
 
-    simulated_acceleration = (
-        latest["X1_ActualAcceleration"]
-        * (1 + acceleration_increase / 100)
-    )
+    simulated_current = current_value * (1 + current_increase / 100)
+    simulated_acceleration = acceleration_value * (1 + acceleration_increase / 100)
 
-    st.subheader("Simulated Machine Parameters")
+    st.write(f"Simulated Output Current: {simulated_current:.2f}")
+    st.write(f"Simulated Acceleration: {simulated_acceleration:.2f}")
 
-    col4, col5 = st.columns(2)
-
-    with col4:
-        st.metric(
-            "Simulated Output Current",
-            round(simulated_current, 2)
-        )
-
-    with col5:
-        st.metric(
-            "Simulated Acceleration",
-            round(simulated_acceleration, 2)
-        )
-
-    # Simple simulated failure condition
     if current_increase >= 50 or acceleration_increase >= 50:
-        st.error("⚠ SIMULATED ABNORMAL CONDITION")
-        st.warning("Maintenance Alert: Machine requires inspection")
+        st.error("SIMULATED ABNORMAL CONDITION")
+        st.warning("Maintenance Alert: Machine requires inspection.")
     else:
-        st.info("Machine condition is within simulated range.")
+        st.success("Machine condition is within simulated range.")
 
-else:
-    st.info("Failure Simulation is OFF")
+# ---------------- DIGITAL TWIN INFO ----------------
+st.header("Digital Twin")
 
-
-# ------------------------------------------------
-# SENSOR GRAPHS
-# ------------------------------------------------
-
-st.subheader("Sensor Data")
-
-st.line_chart(
-    data[
-        [
-            "X1_ActualVelocity",
-            "X1_ActualAcceleration",
-            "X1_OutputCurrent"
-        ]
-    ]
+st.info(
+    "The digital twin monitors CNC machine sensor parameters, "
+    "uses a Random Forest model to classify machine condition, "
+    "and simulates abnormal conditions for predictive maintenance."
 )
